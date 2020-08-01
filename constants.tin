@@ -1,0 +1,111 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun main-window-title () "Calcolatore dei valori nutrizionali")
+
+(defun geometry () [ 290 140 780 514 ])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun kcal-carboidrati () 4) ; 3.8?
+(defun kcal-grassi () 9) ; 9.3?
+(defun kcal-proteine () 4)
+(defun kcal-alcol () 7)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Fonte dati: LARN https://sinu.it/tabelle-larn-2014/
+; PRI (assunzione raccomandata per la popolazione)
+; AI (assunzione adeguata)
+; AR (fabbisogno medio)
+; UL (livello massimo tollerabile di assunzione)
+; SDT (obiettivo nutrizionale per la popolazione)
+
+(defun nutrienti ()
+        [ [ "energia"                undef undef undef undef undef ]
+          [ "grassi"                 undef undef undef undef undef ]
+          [ "grassi saturi"          undef undef undef undef undef ]
+          [ "grassi monoinsaturi"    undef undef undef undef undef ]
+          [ "grassi polinsaturi"     undef undef undef undef undef ]
+          [ "grassi omega 3"         undef undef undef undef undef ]
+          [ "grassi omega 3 epa+dha" undef 0.25 undef undef undef ]
+          [ "grassi omega 6"         undef undef undef undef undef ]
+          [ "grassi trans"           undef undef undef undef undef ]
+          [ "colesterolo"            undef undef undef undef undef ]
+          [ "carboidrati"            undef undef undef undef undef ]
+          [ "carboidrati zuccheri"   undef undef undef undef undef ]
+          [ "carboidrati amido"      undef undef undef undef undef ]
+          [ "carboidrati polioli"    undef undef undef undef undef ]
+          [ "fibre"                  undef undef undef undef undef ]
+          [ "proteine"               undef undef undef undef undef ]
+          [ "sale"                   undef undef undef undef undef ]
+          [ "alcol"                  undef undef undef undef undef ]
+          [ "vitamina a"             0.0007 undef 0.0005 0.003 undef ]
+          [ "vitamina b1"            0.0012 undef 0.001 undef undef ]
+          [ "vitamina b2"            0.0016 undef 0.0013 undef undef ]
+          [ "vitamina b3"            0.018 undef 0.014 undef undef ]
+          [ "vitamina b5"            undef 0.005 undef undef undef ]
+          [ "vitamina b6"            0.0013 undef 0.0011 0.025 undef ]
+          [ "vitamina b8"            undef 0.00003 undef undef undef ]
+          [ "vitamina b9"            0.0004 undef 0.00032 0.001 undef ]
+          [ "vitamina b12"           0.0000024 undef 0.000002 undef undef ]
+          [ "vitamina c"             0.105 undef 0.075 undef undef ]
+          [ "vitamina d"             0.000015 undef 0.00001 0.0001 undef ]
+          [ "vitamina e"             undef 0.013 undef 0.3 undef ]
+          [ "vitamina j"             undef undef undef undef undef ]
+          [ "vitamina k"             undef 0.00014 undef undef undef ]
+          [ "calcio"                 1     undef 0.8 2.5 undef ]
+          [ "cloro"                  undef 2.3 undef undef undef ]
+          [ "cromo"                  undef 0.000035 undef undef undef ]
+          [ "ferro"                  0.01  undef 0.007 undef undef ]
+          [ "fluoro"                 undef 0.0035 undef undef undef ]
+          [ "fosforo"                0.7   undef 0.58 undef undef ]
+          [ "iodio"                  undef 0.00015 undef undef undef ]
+          [ "magnesio"               0.24  undef 0.17 undef undef ]
+          [ "manganese"              undef 0.0027 undef undef undef ]
+          [ "molibdeno"              undef 0.000065 undef undef undef ]
+          [ "potassio"               undef 3.9 undef undef undef ]
+          [ "rame"                   0.0009 undef 0.0007 undef undef ]
+          [ "selenio"                0.000055 undef 0.000045 undef undef ]
+          [ "silicio"                undef undef undef undef undef ]
+          [ "sodio"                  undef 1.5 undef undef undef ]
+          [ "zinco"                  0.012 undef 0.01 undef undef ]
+          [ "cistina"                undef undef undef undef undef ]
+          [ "creatina"               undef undef undef undef undef ]
+          [ "luteina"                undef undef undef undef undef ]
+          [ "metionina"              undef undef undef undef undef ]
+        ])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+

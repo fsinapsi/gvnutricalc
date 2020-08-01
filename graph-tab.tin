@@ -1,0 +1,331 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet graph-tab (dlg)
+        (deflocal tabs newpos)
+
+        (set tabs <dlg 0>)
+        (set newpos (- 1 (iup-get-int tabs "VALUEPOS")))
+        (iup-set-int tabs "VALUEPOS" newpos)
+        (graph-tab-changepos-low newpos) )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet graph-tab-changepos-cb (tabs newpos oldpos)
+        (opt    (= newpos 1)
+                (iup-post-call (netptr graph-tab-changepos-post)) ))
+
+(defnet graph-tab-changepos-post ()
+        (graph-tab-changepos-low (iup-get-int <_kv "dlg" 0> "VALUEPOS")) )
+
+(defnet graph-tab-changepos-low (newpos)
+        (deflocal alimento rastersize)
+
+        (opt    (= newpos 1)
+                (set alimento (assoc->array <_kv "alimento">))
+                (sort alimento (funptr lesscar))
+                (set rastersize (iup-get-str-attribute <_kv "dlg"> "RASTERSIZE"))
+                (or (<> alimento <_kv "graph-tab-alimento">)
+                    (<> rastersize <_kv "graph-tab-rastersize">) )
+                (if (<> alimento <_kv "graph-tab-alimento">)
+                then    (close <_kv "graph-pix">)
+                        (set <_kv "graph-pix"> (pix-clone (pix-load-static "80x80/work-in-progress.png")))
+                        (set <_kv "graph-fitmode"> 0)
+                        (set <_kv "graph-mag"> 0)
+                        (graph-tab-replace-image)
+                        (close <_kv "graph-pix">)
+                        (set <_kv "graph-pix"> (graph-pix))
+                        (set <_kv "graph-fitmode"> 4)
+                        (set <_kv "graph-mag"> 0) )
+                (set <_kv "graph-tab-alimento"> alimento)
+                (set <_kv "graph-tab-rastersize"> rastersize)
+                (graph-tab-replace-image) ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun immagine-scale-xq (fs) (+ 8 14 (if fs 0 (- 10 (car <_kv "geometry-hack">)))))
+(defun immagine-scale-yq (fs) (+ 58 (if fs 0 32)))
+(defun immagine-mag-step () 1.1)
+
+; fitmode:
+; 0: dimensioni originali
+; 1: fit page
+; 2: fit width
+; 3: fir height
+; 4: sceglie tra 0 e 1 in base alle dimensioni
+
+(defnet graph-tab-replace-image ()
+        (deflocal pix dlg sbx lbl img wp hp fitmode tochoice fs wm hm mag r rr)
+
+        (opt    (set pix <_kv "graph-pix">)
+                (pixp pix)
+                (set dlg <_kv "dlg">)
+                (set sbx <dlg 0 1>)
+                (set lbl <sbx 0>)
+                (set wp (width pix))
+                (set hp (height pix))
+                (set fitmode <_kv "graph-fitmode">)
+                (if (= fitmode 0)
+                then    (set r 1)
+                else    (if (= fitmode 4)
+                        then    (set fitmode 1)
+                                (set tochoice true)
+                        else    (set tochoice false) )
+                        (set fs (= (iup-get-str-attribute dlg "FULLSCREEN") "YES"))
+                        (if (or (= fitmode 1) (= fitmode 2))
+                        then    (set wm (- (iup-get-int dlg "RASTERSIZE") (immagine-scale-xq fs))) )
+                        (if (or (= fitmode 1) (= fitmode 3))
+                        then    (set hm (- (iup-get-int2 dlg "RASTERSIZE") (immagine-scale-yq fs))) )
+                        (set r (min (if (integerp wm) (/ wm wp) (maxint))
+                                    (if (integerp hm) (/ hm hp) (maxint)) ))
+                        (if tochoice
+                        then    (if (>= r 1)
+                                then    (set <_kv "graph-fitmode"> 0)
+                                        (set r 1)
+                                else    (set <_kv "graph-fitmode"> 1) )) )
+                (set mag <_kv "graph-mag">)
+                (repeat (set rr (* r (pow (immagine-mag-step) mag)))
+                        (set wm (rint (* rr wp)))
+                        (set hm (rint (* rr hp)))
+                        until (and (in wm 20 .. 4000) (in hm 20 .. 4000))
+                        until (or (and (> wm 4000) (< hm 20))
+                                  (and (> hm 4000) (< wm 20)) )
+                        (if (or (> wm 4000) (> hm 4000))
+                        then    (dec mag) )
+                        (if (or (< wm 20) (< hm 20))
+                        then    (inc mag) ))
+                (set <_kv "graph-mag"> mag)
+                (if (and (= wm wp) (= hm hp))
+                then    (set img (iup-image-rgba pix))
+                else    ;(set pix (pix-sws-scale-lanczos pix wm hm))
+                        (set pix (pix-scale pix wm hm))
+                        (set img (iup-image-rgba pix))
+                        (close pix) )
+                (iup-set-attribute-handle lbl "IMAGE" img)
+                (close <_kv "graph-img">)
+                (set <_kv "graph-img"> img)
+                (iup-refresh lbl)
+                (iup-refresh sbx)
+                (iup-redraw lbl)
+                (iup-flush) ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun graph-tab-scroll-min () 20)
+(defun graph-tab-scroll-max () 300)
+
+(defnet graph-tab-left (sbx)
+        (graph-tab-left-low sbx (graph-tab-scroll-min)) )
+
+(defnet graph-tab-right (sbx)
+        (graph-tab-right-low sbx (graph-tab-scroll-min)) )
+
+(defnet graph-tab-up (sbx)
+        (graph-tab-up-low sbx (graph-tab-scroll-min)) )
+
+(defnet graph-tab-down (sbx)
+        (graph-tab-down-low sbx (graph-tab-scroll-min)) )
+
+(defnet graph-tab-pgleft (sbx)
+        (graph-tab-left-low sbx (graph-tab-scroll-max)) )
+
+(defnet graph-tab-pgright (sbx)
+        (graph-tab-right-low sbx (graph-tab-scroll-max)) )
+
+(defnet graph-tab-pgup (sbx)
+        (graph-tab-up-low sbx (graph-tab-scroll-max)) )
+
+(defnet graph-tab-pgdown (sbx)
+        (graph-tab-down-low sbx (graph-tab-scroll-max)) )
+
+(defnet graph-tab-home (sbx)
+        (iup-set-double sbx "POSX" (iup-get-double sbx "XMIN"))
+        (iup-set-double sbx "POSY" (iup-get-double sbx "YMIN"))
+        (iup-refresh sbx) )
+
+(defnet graph-tab-end (sbx)
+        (iup-set-double sbx "POSX" (- (iup-get-double sbx "XMAX") (iup-get-double sbx "DX")))
+        (iup-set-double sbx "POSY" (- (iup-get-double sbx "YMAX") (iup-get-double sbx "DY")))
+        (iup-refresh sbx) )
+
+(defnet graph-tab-left-low (sbx s)
+        (deflocal max pos)
+
+        (if (= (iup-get-double sbx "XMIN") 0)
+        then    (set max (- (iup-get-double sbx "XMAX") (iup-get-double sbx "DX")))
+                (if (> max 0)
+                then    (set pos (iup-get-double sbx "POSX"))
+                        (if (> pos 0)
+                        then    (iup-set-double sbx "POSX" (max 0 (- pos s)))
+                                (iup-refresh sbx) ))))
+
+(defnet graph-tab-right-low (sbx s)
+        (deflocal max pos)
+
+        (if (= (iup-get-double sbx "XMIN") 0)
+        then    (set max (- (iup-get-double sbx "XMAX") (iup-get-double sbx "DX")))
+                (if (> max 0)
+                then    (set pos (iup-get-double sbx "POSX"))
+                        (if (< pos max)
+                        then    (iup-set-double sbx "POSX" (min max (+ pos s)))
+                                (iup-refresh sbx) ))))
+
+(defnet graph-tab-up-low (sbx s)
+        (deflocal max pos)
+
+        (if (= (iup-get-double sbx "YMIN") 0)
+        then    (set max (- (iup-get-double sbx "YMAX") (iup-get-double sbx "DY")))
+                (if (> max 0)
+                then    (set pos (iup-get-double sbx "POSY"))
+                        (if (> pos 0)
+                        then    (iup-set-double sbx "POSY" (max 0 (- pos s)))
+                                (iup-refresh sbx) ))))
+
+(defnet graph-tab-down-low (sbx s)
+        (deflocal max pos)
+
+        (if (= (iup-get-double sbx "YMIN") 0)
+        then    (set max (- (iup-get-double sbx "YMAX") (iup-get-double sbx "DY")))
+                (if (> max 0)
+                then    (set pos (iup-get-double sbx "POSY"))
+                        (if (< pos max)
+                        then    (iup-set-double sbx "POSY" (min max (+ pos s)))
+                                (iup-refresh sbx) ))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet graph-tab-popup-cb (self btn prs x y status)
+        (deflocal menu item-original-size item-fit-page item-fit-width item-fit-height item-zoom-in item-zoom-out item-fullscreen item-save)
+
+        (opt    (= btn 51)
+                (= prs 1)
+
+                (set item-original-size (iup-item "Dimensioni originali (S)"))
+                (iup-set-callback item-original-size "ACTION" (netptr graph-tab-original-size-cb))
+
+                (set item-fit-page (iup-item "Adatta a pagina (P)"))
+                (iup-set-callback item-fit-page "ACTION" (netptr graph-tab-fit-page-cb))
+
+                (set item-fit-width (iup-item "Adatta per larghezza (W)"))
+                (iup-set-callback item-fit-width "ACTION" (netptr graph-tab-fit-width-cb))
+
+                (set item-fit-height (iup-item "Adatta per altezza (H)"))
+                (iup-set-callback item-fit-height "ACTION" (netptr graph-tab-fit-height-cb))
+
+                (set item-zoom-in (iup-item "Zoom in (+)"))
+                (iup-set-callback item-zoom-in "ACTION" (netptr graph-tab-zoom-in-cb))
+
+                (set item-zoom-out (iup-item "Zoom out (-)"))
+                (iup-set-callback item-zoom-out "ACTION" (netptr graph-tab-zoom-out-cb))
+
+                (set item-fullscreen (iup-item "Full screen on/off (F, Ctrl+F)"))
+                (iup-set-callback item-fullscreen "ACTION" (netptr gui-fullscreen))
+
+                (set item-save (iup-item "Salva immagine come... (Ctrl+S)"))
+                (iup-set-callback item-save "ACTION" (netptr graph-tab-save-as-png-cb))
+
+                (set menu (iup-menu item-original-size item-fit-page item-fit-width item-fit-height item-zoom-in item-zoom-out item-fullscreen item-save))
+                (iup-popup menu (cmacro IUP_MOUSEPOS) (cmacro IUP_MOUSEPOS))
+                (close menu) ))
+
+(defnet graph-tab-original-size-cb (self)
+        (if (or (<> <_kv "graph-fitmode"> 0) (<> <_kv "graph-mag"> 0))
+        then    (set <_kv "graph-fitmode"> 0)
+                (set <_kv "graph-mag"> 0)
+                (graph-tab-replace-image) ))
+
+(defnet graph-tab-fit-page-cb (self)
+        (if (or (<> <_kv "graph-fitmode"> 1) (<> <_kv "graph-mag"> 0))
+        then    (set <_kv "graph-fitmode"> 1)
+                (set <_kv "graph-mag"> 0)
+                (graph-tab-replace-image) ))
+
+(defnet graph-tab-fit-width-cb (self)
+        (if (or (<> <_kv "graph-fitmode"> 2) (<> <_kv "graph-mag"> 0))
+        then    (set <_kv "graph-fitmode"> 2)
+                (set <_kv "graph-mag"> 0)
+                (graph-tab-replace-image) ))
+
+(defnet graph-tab-fit-height-cb (self)
+        (if (or (<> <_kv "graph-fitmode"> 3) (<> <_kv "graph-mag"> 0))
+        then    (set <_kv "graph-fitmode"> 3)
+                (set <_kv "graph-mag"> 0)
+                (graph-tab-replace-image) ))
+
+(defnet graph-tab-zoom-in-cb (self)
+        (inc <_kv "graph-mag">)
+        (graph-tab-replace-image) )
+
+(defnet graph-tab-zoom-out-cb (self)
+        (dec <_kv "graph-mag">)
+        (graph-tab-replace-image) )
+
+(defnet graph-tab-save-as-png-cb (self)
+        (deflocal pix dlg path)
+
+        (opt    (set pix <_kv "graph-pix">)
+                (pixp pix)
+                (set dlg (iup-file-dlg))
+                (iup-set-attribute-handle dlg "PARENTDIALOG" <_kv "dlg">)
+                (iup-set-str-attribute dlg "DIRECTORY" (cwd))
+                (iup-set-str-attribute dlg "DIALOGTYPE" "SAVE")
+                (iup-set-str-attribute dlg "FILE" "gvnutricalc.png")
+                (iup-set-str-attribute dlg "EXTFILTER" "PNG Files|*.png|All Files|*.*|")
+                (iup-set-str-attribute dlg "EXTDEFAULT" "png")
+                (iup-popup dlg (cmacro IUP_CENTERPARENT) (cmacro IUP_CENTERPARENT))
+                (if (= (iup-get-int dlg "STATUS") -1)
+                then    (close dlg)
+                        (fail) )
+                (set path (iup-get-str-attribute dlg "VALUE"))
+                (close dlg)
+                (pix-save-png pix path) ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+

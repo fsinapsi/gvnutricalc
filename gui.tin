@@ -1,0 +1,940 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui ()
+        (deflocal dlg)
+
+        (init)
+        (set dlg (iup-dialog (gui-setup-main)))
+        (da-chiudere dlg)
+        (set <_kv "dlg"> dlg)
+        (iup-set-attribute-handle undef "PARENTDIALOG" dlg)
+        (iup-set-str-attribute dlg "TITLE" (main-window-title))
+        (iup-set-callback dlg "CLOSE_CB" (netptr gui-close))
+        (iup-set-callback dlg "RESIZE_CB" (netptr gui-resize-cb))
+        (iup-set-callback dlg "K_ANY" (netptr gui-kb-cb))
+        (iup-set-str-attribute dlg "FULLSCREEN" "NO")
+        (iup-set-str-attribute dlg "RASTERSIZE" (sprint <(geometry) 2> "x" <(geometry) 3>))
+        (if (cmingw)
+        then    (iup-show-xy dlg (cmacro IUP_CENTER) (cmacro IUP_CENTER))
+        else    (iup-show-xy dlg <(geometry) 0> <(geometry) 1>) )
+        (set <_kv "geometry-hack"> (cons (- <(geometry) 2> (iup-get-int dlg "RASTERSIZE")) (- <(geometry) 3> (iup-get-int2 dlg "RASTERSIZE"))))
+        (iup-set-str-attribute dlg "USERSIZE")
+        (gui-update-left-list (iup-get-str-attribute <_kv "filter-entry"> "VALUE"))
+        (iup-set-str-attribute <_kv "save-button"> "ACTIVE" "NO")
+        (iup-set-focus <_kv "filter-entry">)
+        (iup-main-loop)
+        (quit) )
+
+(defnet gui-quit (self)
+        (opt    (gui-quit-low self)
+                (iup-exit-loop) ))
+
+(defnet gui-quit-low (self)
+        (alt    (= (iup-get-str-attribute <_kv "save-button"> "ACTIVE") "NO")
+                (iup-confirm self (+ "Non hai salvato le ultime modifiche." nl
+                                     "Vuoi uscire comunque?" ))))
+
+(defnet gui-close (self)
+        (invert-test (netptr gui-quit-low) self) )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun gui-setup-button (name icon tip cback) net gui-setup-button)
+(defnet gui-setup-button (name icon tip cback @wid)
+        (deflocal img)
+
+        (set @wid (iup-button))
+        (if (stringp name)
+        then    (set <_kv name> @wid) )
+        (iup-set-str-attribute @wid "EXPAND" "NO")
+        (set img (iup-image-rgba icon))
+        (da-chiudere img)
+        (iup-set-attribute-handle @wid "IMAGE" img)
+        (if (stringp tip)
+        then    (iup-set-str-attribute @wid "TIP" tip) )
+        (iup-set-callback @wid "ACTION" cback) )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun gui-setup-main () net gui-setup-main)
+(defnet gui-setup-main (@wid)
+        (deflocal img)
+
+        (set @wid (iup-tabs (gui-setup-calc-page) (gui-setup-graph-page)))
+
+        (iup-set-str-attribute @wid "TABTITLE0" "calcolatore")
+        (set img (iup-image-rgba (pix-load-static "16x16/calculator-blue.png")))
+        (da-chiudere img)
+        (iup-set-attribute-handle @wid "TABIMAGE0" img)
+
+        (iup-set-str-attribute @wid "TABTITLE1" "grafo")
+        (set img (iup-image-rgba (pix-load-static "16x16/graph-four-nodes.png")))
+        (da-chiudere img)
+        (iup-set-attribute-handle @wid "TABIMAGE1" img)
+
+        (iup-set-callback @wid "TABCHANGEPOS_CB" (netptr graph-tab-changepos-cb))
+        (iup-set-str-attribute @wid "EXPAND" "YES") )
+
+(defun gui-setup-calc-page () net gui-setup-calc-page)
+(defnet gui-setup-calc-page (@wid)
+        (set @wid (iup-vbox (gui-setup-toolbar)
+                            (gui-setup-calc-page2) ))
+        ;(iup-set-str-attribute @wid "MARGIN" "0x3")
+        (iup-set-str-attribute @wid "EXPAND" "YES") )
+
+(defun gui-setup-toolbar () net gui-setup-toolbar)
+(defnet gui-setup-toolbar (@wid)
+        (set @wid (iup-hbox (gui-setup-button "save-button" (pix-load-static "16x16/disk.png") "Salva le modifiche al database" (netptr gui-save-button-cb))
+                            (gui-setup-button undef (pix-load-static "16x16/edit.png") "Modifica il nome dell'alimento selezionato" (netptr gui-rename-button-cb))
+                            (gui-setup-button undef (pix-load-static "16x16/if_delete_garbage.png") "Cancella l'alimento selezionato" (netptr gui-delete1-button-cb))
+                            (gui-setup-button undef (pix-load-static "16x16/information.png") "Mostra informazioni sul programma" (netptr gui-info-button-cb))
+                            (iup-fill)
+                            (gui-setup-button undef (pix-load-static "16x16/if_left_arrow.png") "Crea nuovo alimento composto da questi" (netptr gui-add2-button-cb))
+                            (gui-setup-button undef (pix-load-static "16x16/clear-down.png") "Rimuovi tutti gli alimenti (Ctrl+N)" (netptr gui-erase2-button-cb))
+                            (gui-setup-button undef (pix-load-static "16x16/if_delete_garbage.png") "Rimuovi gli alimenti selezionati" (netptr gui-delete2-button-cb))
+                            (gui-setup-button undef (pix-load-static "16x16/if_expand.png") "Espandi gli alimenti selezionati" (netptr gui-expand-button-cb))
+                            ;(gui-setup-button undef (pix-load-static "16x16/compare.png") undef (netptr cmp-cb))
+                            ))
+        (iup-set-str-attribute @wid "EXPAND" "HORIZONTAL") )
+
+(defun gui-setup-calc-page2 () net gui-setup-calc-page2)
+(defnet gui-setup-calc-page2 (@wid)
+        (set @wid (iup-hbox (gui-setup-left) (gui-setup-right)))
+        (iup-set-str-attribute @wid "EXPAND" "YES")
+        (iup-set-str-attribute @wid "HOMOGENEOUS" "YES") )
+
+(defun gui-setup-graph-page () net gui-setup-graph-page)
+(defnet gui-setup-graph-page (@wid)
+        (deflocal lbl img pix)
+
+        (set lbl (iup-label))
+        (iup-set-callback lbl "BUTTON_CB" (netptr graph-tab-popup-cb))
+        (iup-set-str-attribute lbl "ALIGNMENT" "ACENTER:ACENTER")
+        (iup-set-str-attribute lbl "EXPAND" "YES")
+        (set pix (pix-create 1 1))
+        (set <_kv "graph-pix"> pix)
+        (set img (iup-image-rgba pix))
+        (iup-set-attribute-handle lbl "IMAGE" img)
+        (set <_kv "graph-img"> img)
+        (set @wid (iup-scroll-box lbl)) )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun gui-setup-left () net gui-setup-left)
+(defnet gui-setup-left (@wid)
+        (deflocal hbox)
+
+        (set hbox (iup-hbox (gui-setup-button undef (pix-load-static "16x16/if_list.png") "Seleziona i nutrienti" (netptr gui-nutrienti-button-cb))
+                            (gui-setup-button undef (pix-load-static "16x16/eco-friendly-bulb.png") "Seleziona gli alimenti che contengono quello selezionato" (netptr gui-fonti-button-cb))
+                            (gui-setup-left-filter-entry)
+                            (gui-setup-left-percent-entry)
+                            (gui-setup-button undef (pix-load-static "16x16/clear-left.png") (iso->utf8 "Resetta la quantità al valore di default") (netptr gui-clear-percent-button-cb))
+                            (gui-setup-button undef (pix-load-static "16x16/mezzo.png") (iso->utf8 "Dimezza la quantità corrente") (netptr gui-unmezzo-percent-button-cb))
+                            (gui-setup-button undef (pix-load-static "16x16/terzo.png") (iso->utf8 "Dividi per 3 la quantità corrente") (netptr gui-unterzo-percent-button-cb))
+                            (gui-setup-button undef (pix-load-static "16x16/x2.png") (iso->utf8 "Raddoppia la quantità corrente") (netptr gui-doppio-percent-button-cb))
+                            (gui-setup-button undef (pix-load-static "16x16/x3.png") (iso->utf8 "Triplica la quantità corrente") (netptr gui-triplo-percent-button-cb))
+                            (gui-setup-button undef (pix-load-static "16x16/if_right_arrow.png") "Aggiungi l'alimento selezionato" (netptr gui-add1-button-cb)) ))
+        (iup-set-str-attribute hbox "EXPAND" "HORIZONTAL")
+        (set @wid (iup-vbox (gui-setup-left-list)
+                            hbox ))
+        (iup-set-str-attribute @wid "EXPAND" "YES") )
+
+(defun gui-setup-left-list () net gui-setup-left-list)
+(defnet gui-setup-left-list (@wid)
+        (set @wid (iup-list))
+        (set <_kv "left-list"> @wid)
+        (iup-set-callback @wid "DRAGBEGIN_CB" (netptr gui-drag-cb))
+    ;    (iup-set-callback @wid "BUTTON_CB" (netptr gui-clicked-left-cb))
+        (iup-set-str-attribute @wid "EXPAND" "YES")
+        (iup-set-str-attribute @wid "FONT" "Lucida Sans, 10")
+        (iup-set-str-attribute @wid "BGCOLOR" "223 255 223")
+        (iup-set-int @wid "VISIBLECOLUMNS" 1)
+        (iup-set-int @wid "VISIBLELINES" 1) )
+
+(defun gui-setup-left-filter-entry () net gui-setup-left-filter-entry)
+(defnet gui-setup-left-filter-entry (@wid)
+        (set @wid (iup-text))
+        (set <_kv "filter-entry"> @wid)
+        (iup-set-callback @wid "VALUECHANGED_CB" (netptr gui-filter-entry-changed-cb))
+        (iup-set-str-attribute @wid "EXPAND" "HORIZONTAL") )
+
+(defun gui-setup-left-percent-entry () net gui-setup-left-percent-entry)
+(defnet gui-setup-left-percent-entry (@wid)
+        (set @wid (iup-text))
+        (set <_kv "percent-entry"> @wid)
+        (iup-set-int @wid "VISIBLECOLUMNS" 6)
+        (iup-set-str-attribute @wid "MASK" "(/d+/.?/d*|/./d+)")
+        (iup-set-str-attribute @wid "VALUE" "100") )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun gui-setup-right () net gui-setup-right)
+(defnet gui-setup-right (@wid)
+        (set @wid (iup-vbox (gui-setup-right-list)
+                            (gui-setup-right-text) ))
+        (iup-set-str-attribute @wid "EXPAND" "YES")
+        (iup-set-str-attribute @wid "HOMOGENEOUS" "YES") )
+
+(defun gui-setup-right-list () net gui-setup-right-list)
+(defnet gui-setup-right-list (@wid)
+        (set @wid (iup-list))
+        (set <_kv "right-list"> @wid)
+        (iup-set-callback @wid "DROPDATA_CB" (netptr gui-drop-cb))
+        (iup-set-str-attribute @wid "EXPAND" "YES")
+        (iup-set-str-attribute @wid "MULTIPLE" "YES")
+        (iup-set-str-attribute @wid "FONT" "Lucida Sans, 10")
+        (iup-set-str-attribute @wid "BGCOLOR" "223 223 255")
+        (iup-set-int @wid "VISIBLECOLUMNS" 1)
+        (iup-set-int @wid "VISIBLELINES" 1) )
+
+(defun gui-setup-right-text () net gui-setup-right-text)
+(defnet gui-setup-right-text (@wid)
+        (set @wid (iup-text))
+        (set <_kv "right-text"> @wid)
+        (iup-set-str-attribute @wid "EXPAND" "YES")
+        (iup-set-str-attribute @wid "FONT" "Lucida Console, 10")
+        (iup-set-str-attribute @wid "MULTILINE" "YES")
+        (iup-set-str-attribute @wid "READONLY" "YES")
+        (iup-set-str-attribute @wid "WORDWRAP" "YES")
+        (iup-set-str-attribute @wid "FORMATTING" "YES")
+        (iup-set-str-attribute @wid "PADDING" "4x0")
+        (iup-set-str-attribute @wid "BGCOLOR" "255 223 223")
+        (iup-set-int @wid "VISIBLELINES" 1)
+        (iup-set-int @wid "VISIBLECOLUMNS" 1) )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-resize-cb (dlg w h)
+        (opt (iup-post-call (netptr graph-tab-changepos-post))) )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-kb-cb (dlg c)
+        (deflocal tabs sbx)
+
+        (case c of
+                (cmacro K_cQ)           (gui-quit dlg)
+                (cmacro K_cF)           (gui-fullscreen undef)
+                (cmacro K_TAB)          (graph-tab dlg)
+                default                 (seq    (set tabs <dlg 0>)
+                                                (case (iup-get-int tabs "VALUEPOS") of
+                                                0
+                                                (case c of
+                                                        (cmacro K_CR)           (gui-cr dlg)
+                                                        (cmacro K_DEL)          (gui-del dlg)
+                                                        (cmacro K_cN)           (gui-erase2-button-cb undef)
+                                                        default                 (seq    (if (or (in c (cmacro K_a) .. (cmacro K_z))
+                                                                                                (in c (cmacro K_A) .. (cmacro K_Z))
+                                                                                                (= c (cmacro K_SP)) )
+                                                                                        then    (if (<> (iup-get-focus) <_kv "filter-entry">)
+                                                                                                then    (iup-set-focus <_kv "filter-entry">) ))
+                                                                                        (fail) ))
+                                                1       (seq
+                                                (set sbx <tabs 1>)
+                                                (case c of
+                                                        (cmacro K_ESC)          (graph-tab dlg)
+                                                        (cmacro K_HOME)         (graph-tab-home sbx)
+                                                        (cmacro K_END)          (graph-tab-end sbx)
+                                                        (cmacro K_LEFT)         (graph-tab-left sbx)
+                                                        (cmacro K_RIGHT)        (graph-tab-right sbx)
+                                                        (cmacro K_UP)           (graph-tab-up sbx)
+                                                        (cmacro K_DOWN)         (graph-tab-down sbx)
+                                                        (cmacro K_PGUP)         (graph-tab-pgup sbx)
+                                                        (cmacro K_PGDN)         (graph-tab-pgdown sbx)
+                                                        (cmacro K_sLEFT)        (graph-tab-pgleft sbx)
+                                                        (cmacro K_sRIGHT)       (graph-tab-pgright sbx)
+                                                        (cmacro K_sUP)          (graph-tab-pgup sbx)
+                                                        (cmacro K_sDOWN)        (graph-tab-pgdown sbx)
+                                                        (cmacro K_f)            (gui-fullscreen undef)
+                                                        (cmacro K_s)            (graph-tab-original-size-cb undef)
+                                                        (cmacro K_p)            (graph-tab-fit-page-cb undef)
+                                                        (cmacro K_w)            (graph-tab-fit-width-cb undef)
+                                                        (cmacro K_h)            (graph-tab-fit-height-cb undef)
+                                                        (cmacro K_plus)         (graph-tab-zoom-in-cb undef)
+                                                        (cmacro K_minus)        (graph-tab-zoom-out-cb undef)
+                                                        (cmacro K_cS)           (graph-tab-save-as-png-cb undef)
+                                                        default                 (fail) ))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-update-left-list (flt)
+        (deflocal nutrienti lst re a i j)
+
+        (set nutrienti <_kv "nutrienti">)
+        (set lst <_kv "left-list">)
+        (if (stringp flt)
+        then    (set a (array 0))
+                (set re (regcomp flt (cmacro REG_ICASE)))
+                (if (<> re undef)
+                then    (for i in <_kv "db"> do
+                                (set j (car i))
+                                (opt    (regexec re j)
+                                        (not (in j nutrienti))
+                                        (array-append a j) ))
+                        (close re) )
+                (sort a)
+        else    (set a flt) )
+        (set j 1)
+        (for i in a do
+                (iup-set-str-attribute lst j i)
+                (inc j) )
+        (iup-set-str-attribute lst j)
+        (if (> j 1)
+        then    (iup-set-int lst "VALUE" 1)
+                (iup-set-int lst "TOPITEM" 1) ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-filter-entry-changed-cb (self)
+        (gui-update-left-list (iup-get-str-attribute self "VALUE")) )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-update-right-list ()
+        (deflocal p lst a i j k s pri ai ar ul sdt)
+
+        (set p <_kv "alimento">)
+        (set lst <_kv "right-list">)
+        (set a (assoc->array p))
+        (sort a (funptr lesscar))
+        (set j 1)
+        (for i in a do
+                (iup-set-str-attribute lst j (cdr i) "% di " (car i))
+                (inc j) )
+        (iup-set-str-attribute lst j)
+        (set s "")
+        (if (> (length p) 0)
+        then    (set p (alimento-expand p))
+                (set i (calorie p))
+                (inc s "energia         : " (approx1 <i 0>) " kcal (" (approx1 (cal->joule <i 0>)) " kJ)" nl
+                       "  carboidrati   : " (approx1 <i 1>) "%"  nl
+                       "    zuccheri    : " (approx1 <i 5>) "%"  nl
+                       "  grassi        : " (approx1 <i 2>) "%"  nl
+                       "    saturi      : " (approx1 <i 6>) "%"  nl
+                       "  proteine      : " (approx1 <i 3>) "%"  nl
+                       "  alcol         : " (approx1 <i 4>) "%"  nl
+                       "indice di fibra : " (approx3 <i 7>) nl )
+                (set pri false)
+                (set ai false)
+                (set ar false)
+                (set ul false)
+                (set sdt false)
+                (for i in <_kv "nutrienti"> do
+                        (set j <p i>)
+                        (if (= i "sodio")
+                        then    (set k <p "sale">)
+                                (if (rationalp k)
+                                then    (set j (+ (if (rationalp j) j 0) (/ k 2.5))) ))
+                        (if (rationalp j)
+                        then    (inc s nl i ": " (if (= i "energia") (sprint (approx1 j) " kcal (" (approx1 (cal->joule j)) " kJ)") (sprint (approx9 j) " g")))
+                                (set k (pri i))
+                                (if (rationalp k)
+                                then    (set k (/ j k 0.01))
+                                        (inc s " (" (approx2 k) "% PRI)")
+                                        (set pri true) )
+                                (set k (ai i))
+                                (if (rationalp k)
+                                then    (set k (/ j k 0.01))
+                                        (inc s " (" (approx2 k) "% AI)")
+                                        (set ai true) )
+                                (set k (ar i))
+                                (if (rationalp k)
+                                then    (set k (/ j k 0.01))
+                                        (inc s " (" (approx2 k) "% AR)")
+                                        (set ar true) )
+                                (set k (ul i))
+                                (if (rationalp k)
+                                then    (set k (/ j k 0.01))
+                                        (inc s " (" (approx2 k) "% UL)")
+                                        (set ul true) )
+                                (set k (sdt i))
+                                (if (rationalp k)
+                                then    (set k (/ j k 0.01))
+                                        (inc s " (" (approx2 k) "% SDT)")
+                                        (set sdt true) )))
+                (set i nl)
+                (if pri
+                then    (inc s nl
+                               i
+                               "PRI = assunzione raccomandata per la popolazione" )
+                        (set i "") )
+                (if ai
+                then    (inc s nl
+                               i
+                               "AI = assunzione adeguata" )
+                        (set i "") )
+                (if ar
+                then    (inc s nl
+                               i
+                               "AR = fabbisogno medio" )
+                        (set i "") )
+                (if ul
+                then    (inc s nl
+                               i
+                               "UL = livello massimo tollerabile di assunzione" )
+                        (set i "") )
+                (if sdt
+                then    (inc s nl
+                               i
+                               "SDT = obiettivo nutrizionale per la popolazione" )
+                        (set i "") ))
+        (iup-set-str-attribute <_kv "right-text"> "VALUE" s) )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-cr (self)
+        (deflocal wid i)
+
+        (set wid (iup-get-focus))
+        (alt    (seq    (= wid <_kv "filter-entry">)
+                        (gui-filter-entry-changed-cb wid)
+                        (iup-set-focus <_kv "left-list">) )
+                (seq    (or (= wid <_kv "percent-entry">) (= wid <_kv "left-list">))
+                        (gui-add1-button-cb self) )))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-del (self)
+        (deflocal wid)
+
+        (set wid (iup-get-focus))
+        (alt    (seq    (or (= wid <_kv "left-list">))
+                        (gui-delete1-button-cb self) )
+                (seq    (or (= wid <_kv "right-list">))
+                        (gui-delete2-button-cb self) )))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-fullscreen (self)
+        (deflocal dlg)
+
+        (set dlg <_kv "dlg">)
+        (case (iup-get-str-attribute dlg "FULLSCREEN") of
+                "NO"    (seq    (set <_kv "dlg-size"> (iup-get-str-attribute dlg "RASTERSIZE"))
+                                (set <_kv "dlg-position-x"> (iup-get-int dlg "SCREENPOSITION"))
+                                (set <_kv "dlg-position-y"> (iup-get-int2 dlg "SCREENPOSITION"))
+                                (iup-set-str-attribute dlg "FULLSCREEN" "YES") )
+                "YES"   (seq    (iup-set-str-attribute dlg "FULLSCREEN" "NO")
+                                (iup-set-str-attribute dlg "RASTERSIZE" <_kv "dlg-size">)
+                                (iup-show-xy dlg <_kv "dlg-position-x"> <_kv "dlg-position-y">)
+                                (iup-set-str-attribute dlg "TITLE" (main-window-title)) ))
+        (iup-refresh dlg)
+        (iup-flush)
+        (graph-tab-changepos-post) )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-nutrienti-button-cb (self)
+        (gui-update-left-list <_kv "nutrienti">)
+        (iup-set-focus <_kv "percent-entry">) )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-fonti-button-cb (self)
+        (deflocal alimento a i)
+
+        (opt    (set alimento (iup-get-str-attribute <_kv "left-list"> "VALUESTRING"))
+                (stringp alimento)
+                (gui-update-left-list (gui-fonti alimento)) ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-clear-percent-button-cb (self)
+        (deflocal wid)
+
+        (set wid <_kv "percent-entry">)
+        (iup-set-str-attribute wid "VALUE" "100")
+        (iup-set-focus wid) )
+
+(defnet gui-mult-percent-button-cb (mult)
+        (deflocal wid i)
+
+        (opt    (set wid <_kv "percent-entry">)
+                (set i (str->num (iup-get-str-attribute wid "VALUE")))
+                (rationalp i)
+                (iup-set-str-attribute wid "VALUE" (approx9 (* i mult)))
+                (iup-set-focus wid) ))
+
+(defnet gui-unmezzo-percent-button-cb (self)
+        (gui-mult-percent-button-cb (/ 1 2)) )
+
+(defnet gui-unterzo-percent-button-cb (self)
+        (gui-mult-percent-button-cb (/ 1 3)) )
+
+(defnet gui-doppio-percent-button-cb (self)
+        (gui-mult-percent-button-cb 2) )
+
+(defnet gui-triplo-percent-button-cb (self)
+        (gui-mult-percent-button-cb 3) )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-add1-button-cb (self)
+        (deflocal alimento percent)
+
+        (opt    (set alimento (iup-get-str-attribute <_kv "left-list"> "VALUESTRING"))
+                (stringp alimento)
+                (set percent (str->num (iup-get-str-attribute <_kv "percent-entry"> "VALUE")))
+                (rationalp percent)
+                (>= percent 0)
+                (set <_kv "alimento" alimento> percent)
+                (gui-update-right-list) ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-rename-button-cb (self)
+        (deflocal nutrienti db alimento s i j k)
+
+        (opt    (set nutrienti <_kv "nutrienti">)
+                (set db <_kv "db">)
+                (set alimento (iup-get-str-attribute <_kv "left-list"> "VALUESTRING"))
+                (stringp alimento)
+                (not (in alimento nutrienti))
+                (set s alimento)
+                (repeat (iup-edit-string self "Rinominazione" "Nuovo nome" s)
+                        (<> s "")
+                        (<> s alimento)
+                        until (= <db s> undef)
+                        (iup-warning self (+ "L'alimento " s (iso->utf8 " esiste già.") nl
+                                             "Scegli un altro nome." )))
+                (dgraph-renamenode db alimento s)
+                (gui-update-left-list (list s))
+                (gui-erase2-button-cb self)
+                (iup-set-str-attribute <_kv "save-button"> "ACTIVE" "YES")
+                (iup-set-focus <_kv "percent-entry">) ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-delete1-button-cb (self)
+        (deflocal nutrienti db alimento asc node)
+
+        (opt    (set nutrienti <_kv "nutrienti">)
+                (set db <_kv "db">)
+                (set alimento (iup-get-str-attribute <_kv "left-list"> "VALUESTRING"))
+                (stringp alimento)
+                (not (in alimento nutrienti))
+                (set asc (dgraph-prec-ext db alimento))
+                (set <asc alimento> true)
+                (iup-confirm self (+ "Numero di alimenti che verranno rimossi: " (length asc) "." nl
+                                     "Confermi?" ))
+                (while (> (length asc) 0) do
+                        (set node (assoc-root asc))
+                        (dgraph-rmnode db node)
+                        (assoc-clr asc node) )
+                (gui-update-left-list (iup-get-str-attribute <_kv "filter-entry"> "VALUE"))
+                (gui-erase2-button-cb self)
+                (iup-set-str-attribute <_kv "save-button"> "ACTIVE" "YES")
+                (iup-set-focus <_kv "percent-entry">) ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-add2-button-cb (self)
+        (deflocal db alimento s i)
+
+        (opt    (set db <_kv "db">)
+                (set alimento <_kv "alimento">)
+                (> (length alimento) 0)
+                ; nome di default: l alimento eventualmente selezionato
+                (set s (iup-get-str-attribute <_kv "left-list"> "VALUESTRING"))
+                (if (in s <_kv "nutrienti">)
+                then    (set s "") )
+                (repeat (iup-edit-string self "Inserimento" "Nuovo alimento" s)
+                        (<> s "")
+                        (set i true)
+                        (alt    (seq    (in s <_kv "nutrienti">)
+                                        (set i false)
+                                        (iup-warning self (+ s (iso->utf8 " è un nutriente.") nl
+                                                             "Scegli un altro nome." )))
+                                (= <db s> undef)
+                                (seq    ; so che s esiste già; per evitare cicli
+                                        ; devo controllare che nessun alimento in alimento
+                                        ; abbia come discendente s
+                                        (<> <(gui-succ alimento) s> undef)
+                                        (set i false)
+                                        (iup-warning self (+ "L'alimento " s (iso->utf8 " esiste già.") nl
+                                                             "Scegli un altro nome." )))
+                                (iup-confirm self (+ "L'alimento " s (iso->utf8 " esiste già.") nl
+                                                     "Lo vuoi sovrascrivere?" ))
+                                (set i false) )
+                        until i )
+                (opt (dgraph-mknode db s undef))
+                (dgraph-rmedges-succ db s)
+                (repeat (set i (assoc-root alimento))
+                        (dgraph-mkedge-acyclic db s i <alimento i>)
+                        (assoc-clr alimento i)
+                        until (= (length alimento) 0) )
+                (set alimento (assoc))
+                (set <_kv "alimento"> alimento)
+                (set <alimento s> 100)
+                (gui-update-left-list (list s))
+                (gui-update-right-list)
+                (iup-set-str-attribute <_kv "save-button"> "ACTIVE" "YES")
+                (iup-set-focus <_kv "right-list">) ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-erase2-button-cb (self)
+        (deflocal lst sel alimento found c s i)
+
+        (opt    (set alimento <_kv "alimento">)
+                (> (length alimento) 0)
+                (set <_kv "alimento"> (assoc))
+                (gui-update-right-list) ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-delete2-button-cb (self)
+        (deflocal lst sel alimento found c s i)
+
+        (opt    (set lst <_kv "right-list">)
+                (set sel (iup-get-str-attribute lst "VALUE"))
+                (stringp sel)
+                (set alimento <_kv "alimento">)
+                (set found false)
+                (for c in sel do
+                        (opt    (= c '+')
+                                (set s (iup-get-str-attribute lst (+ (for-pos) 1)))
+                                (search "% di " s i)
+                                (assoc-clr alimento (sub (+ i 5) (maxint) s))
+                                (set found true) ))
+                (truep found)
+                (gui-update-right-list) ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-expand-button-cb (self)
+        (deflocal lst sel nutrienti db alimento e found c s n t i)
+
+        (opt    (set lst <_kv "right-list">)
+                (set sel (iup-get-str-attribute lst "VALUE"))
+                (stringp sel)
+                (if (not (search "+" sel))
+                then    (set sel (tile (length sel) "+")) )
+                (set nutrienti <_kv "nutrienti">)
+                (set db <_kv "db">)
+                (set alimento <_kv "alimento">)
+                (set e (assoc))
+                (set found false)
+                (for c in sel do
+                        (opt    (= c '+')
+                                (set s (iup-get-str-attribute lst (+ (for-pos) 1)))
+                                (search "% di " s i)
+                                (set n (str->num (sub 0 i s)))
+                                (set s (sub (+ i 5) (maxint) s))
+                                (set <e s> true)
+                                (rationalp n)
+                                (not (in s nutrienti))
+                                (set t <db s 0>)
+                                (assoc-clr alimento s)
+                                (assoc-clr e s)
+                                (for i in t do
+                                        (inc <alimento (car i)> (* <(cdr i) 0> n 0.01))
+                                        (set <e (car i)> true) )
+                                (set found true) ))
+                (truep found)
+                (gui-update-right-list)
+                (set sel "")
+                (for n in 1 .. (length alimento) do
+                        (set s (iup-get-str-attribute lst n))
+                        (search "% di " s i)
+                        (inc sel (if (<> <e (sub (+ i 5) (maxint) s)> undef) "+" "-")) )
+                (iup-set-str-attribute lst "VALUE" sel)
+                (iup-set-focus lst) ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-save-button-cb (self)
+        (opt (gui-save-button-low self)) )
+
+(defnet gui-save-button-low (self)
+        (deflocal dbpath dbbakpath f nutrienti i j)
+
+        (= (iup-get-str-attribute self "ACTIVE") "YES")
+        (set dbpath <_kv "dbpath">)
+        (set dbbakpath <_kv "dbbakpath">)
+        (alt    (not (pathexists dbpath))
+                (seq    (if (pathexists dbbakpath)
+                        then    (remove dbbakpath) )
+                        (rename dbpath dbbakpath) )
+                (seq    (iup-error self "Impossibile creare copia di backup.")
+                        (fail) ))
+        (set f (fcreate dbpath))
+        (if (= f undef)
+        then    (iup-error self "Creazione del file fallita.")
+                (fail) )
+        (set nutrienti <_kv "nutrienti">)
+        (alt    (for i in <_kv "db"> do
+                        (if (not (in (car i) nutrienti))
+                        then    (fprint f nl (car i) nl nl)
+                                (for j in <(cdr i) 0> do
+                                        (fprint f (car j) ": " (approx9 <(cdr j) 0>) nl) )
+                                (fprint f "------------------------" nl) ))
+                (seq    (close f)
+                        (iup-error self "Salvataggio dati fallito.")
+                        (fail) ))
+        (close f)
+        (iup-set-str-attribute self "ACTIVE" "NO") )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-drag-cb (lst1 x y)
+        (set <_kv "drag-item"> (iup-convert-xy-to-pos lst1 x y)) )
+
+(defnet gui-drop-cb (lst2 x y)
+        (deflocal lst1 alimento s)
+
+        (set s <_kv "drag-item">)
+        (set lst1 <_kv "left-list">)
+        (iup-set-int lst1 "VALUE" s)
+        (set alimento (iup-get-str-attribute lst1 s))
+        (opt    (stringp alimento)
+                (set s "100")
+                (iup-edit-string-with-mask <_kv "dlg"> (iso->utf8 "Quantità") (str-split alimento 70) "(/d+/.?/d*|/./d+)" s)
+                (set s (str->num s))
+                (rationalp s)
+                (iup-set-str-attribute <_kv "percent-entry"> "VALUE" s)
+                (gui-add1-button-cb undef) ))
+
+(defnet gui-clicked-left-cb (self btn prs x y status)
+        (opt    (= btn 49)
+                (if (= prs 1)
+                then    (print "drag!" nl)
+                else    (print "rilascio" nl) ))
+        (skip) )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet gui-info-button-cb (self)
+        (opt (gui-info-button-low self)) )
+
+(defnet gui-info-button-low (self)
+        (iup-info self (+
+                "Compilato in data " (date-trunc-hhmmss (cdate)) " (" (csysbits) "-bit)" nl
+                "Sistema: " (cuname) nl
+                "IUP: " (iup-version) nl
+                nl
+                (iso->utf8 "La fonte originale dei dati iniziali è: CREA Centro di ricerca Alimenti e Nutrizione") nl
+                "Pagina web: https://www.crea.gov.it/alimenti-e-nutrizione" nl
+                "Pagina web: https://www.alimentinutrizione.it" nl
+                nl
+                "Alimenti: " (- (length <_kv "db">) (length <_kv "nutrienti">)) nl
+                )))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+

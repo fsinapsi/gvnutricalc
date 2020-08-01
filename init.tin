@@ -1,0 +1,120 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet init ()
+        (set-icon "kitchen-scale.ico")
+        (init-kv)
+        (init-load-db) )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet init-kv ()
+        (deflocal db nutrienti pri ai ar ul sdt nut i)
+
+        (set _kv (assoc))
+        (set <_kv "da-chiudere"> (queue))
+        (set db (dgraph-create))
+        (set nutrienti nil)
+        (set pri (assoc))
+        (set ai (assoc))
+        (set ar (assoc))
+        (set ul (assoc))
+        (set sdt (assoc))
+        (for i in (nutrienti) rev do
+                (set nut (car i))
+                (dgraph-mknode db nut undef)
+                (list-push nutrienti nut)
+                (set <pri nut> <i 1>)
+                (set <ai nut>  <i 2>)
+                (set <ar nut>  <i 3>)
+                (set <ul nut>  <i 4>)
+                (set <sdt nut> <i 5>) )
+        (set <_kv "db"> db)
+        (set <_kv "nutrienti"> nutrienti)
+        (set <_kv "larn"> (list pri ai ar ul sdt))
+        (set <_kv "alimento"> (assoc)) )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet init-load-db ()
+        (deflocal dbpath f)
+
+        (set dbpath (search-path-default "gvnutricalc.txt"))
+        (if (= dbpath undef)
+        then    (if (cmingw)
+                then    (set dbpath (callpathp "gvnutricalc.txt"))
+                else    (set dbpath (homepathp "gvnutricalc.txt")) ))
+        (set f (fopenro dbpath))
+        (alt    (= f undef)
+                (seq    (init-load-db-parse f)
+                        (close f) )
+                (seq    (close f)
+                        (iup-error undef (iso->utf8 "il parsing del file è fallito"))
+                        (fail) ))
+        (set <_kv "dbpath"> dbpath)
+        (set <_kv "dbbakpath"> (path-change-extension dbpath "bak")) )
+
+(defnet init-load-db-parse (f)
+        (deflocal db l name a field val i)
+
+        (set db <_kv "db">)
+        (repeat (set l (freadline f))
+                until (= l undef)
+                (set l (ltrim (rtrim l)))
+                (if (and (<> l "") (not (lmatch l "#")))
+                then    (set name l)
+                        (not (in name <_kv "nutrienti">))
+                        (opt (dgraph-mknode db name undef))
+                        (repeat (set l (freadline f))
+                                (stringp l)
+                                (set l (ltrim (rtrim l)))
+                                until (lmatch l "-")
+                                (if (and (<> l "") (not (lmatch l "#")))
+                                then    (search ": " l i (maxint))
+                                        (set field (sub 0 i l))
+                                        (set l (sub (+ i 2) (maxint) l))
+                                        (alt    (seq    (= field "energia")
+                                                        (set i 1) )
+                                                (seq    (rmatch setidx i remove l "m" "\302\265")
+                                                        (case i of
+                                                                0       (set i 0.001)
+                                                                1       (set i 0.000001) ))
+                                                (set i 1) )
+                                        (set val (* i (str->num (ltrim (rtrim l)))))
+                                        (rationalp val)
+                                        (>= val 0)
+                                        (dgraph-mkedge-acyclic db name field val) )))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
