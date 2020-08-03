@@ -101,9 +101,17 @@
 
 (defun gui-setup-calc-page () net gui-setup-calc-page)
 (defnet gui-setup-calc-page (@wid)
-        (set @wid (iup-vbox (gui-setup-toolbar)
-                            (gui-setup-calc-page2) ))
-        ;(iup-set-str-attribute @wid "MARGIN" "0x3")
+        (deflocal hbox)
+
+        (if (iup-gtk3)
+        then    ; hack necessario per gtk3...
+                (set hbox (iup-hbox))
+                (iup-set-str-attribute hbox "MARGIN" "0x7")
+                (set @wid (iup-vbox (gui-setup-toolbar)
+                                (gui-setup-calc-page2)
+                                hbox ))
+        else    (set @wid (iup-vbox (gui-setup-toolbar)
+                                (gui-setup-calc-page2) )))
         (iup-set-str-attribute @wid "EXPAND" "YES") )
 
 (defun gui-setup-toolbar () net gui-setup-toolbar)
@@ -917,15 +925,19 @@
 
 (defnet gui-info-button-low (self)
         (iup-info self (+
-                "Compilato in data " (date-trunc-hhmmss (cdate)) " (" (csysbits) "-bit)" nl
-                "Sistema: " (cuname) nl
-                "IUP: " (iup-version) nl
+                (iso->utf8 "gvnutricalc è stato scritto in TreeP da Frank Sinapsi") nl
                 nl
                 (iso->utf8 "La fonte originale dei dati iniziali è: CREA Centro di ricerca Alimenti e Nutrizione") nl
                 "Pagina web: https://www.crea.gov.it/alimenti-e-nutrizione" nl
                 "Pagina web: https://www.alimentinutrizione.it" nl
                 nl
-                "Alimenti: " (- (length <_kv "db">) (length <_kv "nutrienti">)) nl
+                "Alimenti presenti nel database: " (- (length <_kv "db">) (length <_kv "nutrienti">)) nl
+                nl
+                "Compilato in data " (date-trunc-hhmmss (cdate)) " (" (csysbits) "-bit)" nl
+                "IUP version: " (iup-version) nl
+                "IUP system: " (iup-get-global "SYSTEM") nl
+                (if (clinux) (+ "GTK version: " (iup-get-global "GTKVERSION") nl) "")
+                nl
                 )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

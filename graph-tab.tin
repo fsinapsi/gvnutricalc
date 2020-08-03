@@ -234,38 +234,34 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defnet graph-tab-popup-cb (self btn prs x y status)
-        (deflocal menu item-original-size item-fit-page item-fit-width item-fit-height item-zoom-in item-zoom-out item-fullscreen item-save)
+        (opt    (= prs 1)
+                (alt    (seq    (= btn 49)
+                                (graph-tab-zoom-in-cb undef) )
+                        (seq    (= btn 50)
+                                (set <_kv "graph-fitmode"> 4)
+                                (set <_kv "graph-mag"> 0)
+                                (graph-tab-replace-image) )
+                        (seq    (= btn 51)
+                                (graph-tab-popup) ))))
 
-        (opt    (= btn 51)
-                (= prs 1)
+(defnet graph-tab-popup ()
+        (deflocal menu items item i)
 
-                (set item-original-size (iup-item "Dimensioni originali (S)"))
-                (iup-set-callback item-original-size "ACTION" (netptr graph-tab-original-size-cb))
-
-                (set item-fit-page (iup-item "Adatta a pagina (P)"))
-                (iup-set-callback item-fit-page "ACTION" (netptr graph-tab-fit-page-cb))
-
-                (set item-fit-width (iup-item "Adatta per larghezza (W)"))
-                (iup-set-callback item-fit-width "ACTION" (netptr graph-tab-fit-width-cb))
-
-                (set item-fit-height (iup-item "Adatta per altezza (H)"))
-                (iup-set-callback item-fit-height "ACTION" (netptr graph-tab-fit-height-cb))
-
-                (set item-zoom-in (iup-item "Zoom in (+)"))
-                (iup-set-callback item-zoom-in "ACTION" (netptr graph-tab-zoom-in-cb))
-
-                (set item-zoom-out (iup-item "Zoom out (-)"))
-                (iup-set-callback item-zoom-out "ACTION" (netptr graph-tab-zoom-out-cb))
-
-                (set item-fullscreen (iup-item "Full screen on/off (F, Ctrl+F)"))
-                (iup-set-callback item-fullscreen "ACTION" (netptr gui-fullscreen))
-
-                (set item-save (iup-item "Salva immagine come... (Ctrl+S)"))
-                (iup-set-callback item-save "ACTION" (netptr graph-tab-save-as-png-cb))
-
-                (set menu (iup-menu item-original-size item-fit-page item-fit-width item-fit-height item-zoom-in item-zoom-out item-fullscreen item-save))
-                (iup-popup menu (cmacro IUP_MOUSEPOS) (cmacro IUP_MOUSEPOS))
-                (close menu) ))
+        (set items (queue))
+        (for i in (list (cons "Dimensioni originali (S)" (netptr graph-tab-original-size-cb))
+                        (cons "Adatta a pagina (P)" (netptr graph-tab-fit-page-cb))
+                        (cons "Adatta per larghezza (W)" (netptr graph-tab-fit-width-cb))
+                        (cons "Adatta per altezza (H)" (netptr graph-tab-fit-height-cb))
+                        (cons "Zoom in (+)" (netptr graph-tab-zoom-in-cb))
+                        (cons "Zoom out (-)" (netptr graph-tab-zoom-out-cb))
+                        (cons "Full screen on/off (F, Ctrl+F)" (netptr gui-fullscreen))
+                        (cons "Salva immagine come... (Ctrl+S)" (netptr graph-tab-save-as-png-cb)) ) do
+                (set item (iup-item (car i)))
+                (iup-set-callback item "ACTION" (cdr i))
+                (queue-put items item) )
+        (set menu (iup-menu items))
+        (iup-popup menu (cmacro IUP_MOUSEPOS) (cmacro IUP_MOUSEPOS))
+        (close menu) )
 
 (defnet graph-tab-original-size-cb (self)
         (if (or (<> <_kv "graph-fitmode"> 0) (<> <_kv "graph-mag"> 0))

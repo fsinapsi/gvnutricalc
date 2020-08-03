@@ -8,7 +8,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun main-window-title () "Calcolatore dei valori nutrizionali")
+(defun main-window-title () (+ "gvnutricalc ("
+        (int->str (date-day (cdate)) 2 '0') "-"
+        (int->str (date-month (cdate)) 2 '0') "-"
+        (int->str (date-year (cdate)) 4 '0') ")" ))
 
 (defun geometry () [ 290 140 780 514 ])
 
