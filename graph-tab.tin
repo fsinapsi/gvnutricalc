@@ -296,23 +296,12 @@
         (graph-tab-replace-image) )
 
 (defnet graph-tab-save-as-png-cb (self)
-        (deflocal pix dlg path)
+        (deflocal pix path)
 
         (opt    (set pix <_kv "graph-pix">)
                 (pixp pix)
-                (set dlg (iup-file-dlg))
-                (iup-set-attribute-handle dlg "PARENTDIALOG" <_kv "dlg">)
-                (iup-set-str-attribute dlg "DIRECTORY" (cwd))
-                (iup-set-str-attribute dlg "DIALOGTYPE" "SAVE")
-                (iup-set-str-attribute dlg "FILE" "gvnutricalc.png")
-                (iup-set-str-attribute dlg "EXTFILTER" "PNG Files|*.png|All Files|*.*|")
-                (iup-set-str-attribute dlg "EXTDEFAULT" "png")
-                (iup-popup dlg (cmacro IUP_CENTERPARENT) (cmacro IUP_CENTERPARENT))
-                (if (= (iup-get-int dlg "STATUS") -1)
-                then    (close dlg)
-                        (fail) )
-                (set path (iup-get-str-attribute dlg "VALUE"))
-                (close dlg)
+                (set path (iup-choose-file-save self undef (currpath) "gvnutricalc.png" true))
+                (stringp path)
                 (pix-save-png pix path) ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

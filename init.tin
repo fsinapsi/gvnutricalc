@@ -10,6 +10,7 @@
 
 (defnet init ()
         (set-icon "kitchen-scale.ico")
+        (iup-set-lang)
         (init-kv)
         (init-load-db) )
 

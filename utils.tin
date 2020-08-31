@@ -125,13 +125,14 @@
 
 (defun calorie (a) net calorie)
 (defnet calorie (a @v)
-        (deflocal c g p o e)
+        (deflocal c g p f o e)
 
         (set c (* (kcal-carboidrati) (rational-default-zero <a "carboidrati">)))
         (set g (* (kcal-grassi) (rational-default-zero <a "grassi">)))
         (set p (* (kcal-proteine) (rational-default-zero <a "proteine">)))
+        (set f (* (kcal-fibre) (rational-default-zero <a "fibre">)))
         (set o (* (kcal-alcol) (rational-default-zero <a "alcol">)))
-        (set e (+ c g p o))
+        (set e (+ c g p f o))
         (set @v (if (> e 0) (list e
                 (* 100 (/ c e)) (* 100 (/ g e)) (* 100 (/ p e)) (* 100 (/ o e))
                 (* (kcal-carboidrati) 100 (/ (rational-default-zero <a "carboidrati zuccheri">) e))

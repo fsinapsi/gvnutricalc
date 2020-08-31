@@ -13,7 +13,6 @@
 
         (init)
         (set dlg (iup-dialog (gui-setup-main)))
-        (da-chiudere dlg)
         (set <_kv "dlg"> dlg)
         (iup-set-attribute-handle undef "PARENTDIALOG" dlg)
         (iup-set-str-attribute dlg "TITLE" (main-window-title))
@@ -31,6 +30,7 @@
         (iup-set-str-attribute <_kv "save-button"> "ACTIVE" "NO")
         (iup-set-focus <_kv "filter-entry">)
         (iup-main-loop)
+        (close dlg)
         (quit) )
 
 (defnet gui-quit (self)
