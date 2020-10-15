@@ -28,7 +28,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; expande un pasto;
-; se non è espandibile rende p stesso
+; se non Ã¨ espandibile rende p stesso
 
 (defun alimento-expand-step (p) net alimento-expand-step)
 (defnet alimento-expand-step (p @p)

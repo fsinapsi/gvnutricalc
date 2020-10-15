@@ -73,7 +73,7 @@
                 (seq    (init-load-db-parse f)
                         (close f) )
                 (seq    (close f)
-                        (iup-error undef (iso->utf8 "il parsing del file è fallito"))
+                        (iup-error undef "il parsing del file Ã¨ fallito")
                         (fail) ))
         (set <_kv "dbpath"> dbpath)
         (set <_kv "dbbakpath"> (path-change-extension dbpath "bak")) )

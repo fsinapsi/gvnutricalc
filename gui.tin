@@ -168,11 +168,11 @@
                             (gui-setup-button undef (pix-load-static "16x16/eco-friendly-bulb.png") "Seleziona gli alimenti che contengono quello selezionato" (netptr gui-fonti-button-cb))
                             (gui-setup-left-filter-entry)
                             (gui-setup-left-percent-entry)
-                            (gui-setup-button undef (pix-load-static "16x16/clear-left.png") (iso->utf8 "Resetta la quantit‡ al valore di default") (netptr gui-clear-percent-button-cb))
-                            (gui-setup-button undef (pix-load-static "16x16/mezzo.png") (iso->utf8 "Dimezza la quantit‡ corrente") (netptr gui-unmezzo-percent-button-cb))
-                            (gui-setup-button undef (pix-load-static "16x16/terzo.png") (iso->utf8 "Dividi per 3 la quantit‡ corrente") (netptr gui-unterzo-percent-button-cb))
-                            (gui-setup-button undef (pix-load-static "16x16/x2.png") (iso->utf8 "Raddoppia la quantit‡ corrente") (netptr gui-doppio-percent-button-cb))
-                            (gui-setup-button undef (pix-load-static "16x16/x3.png") (iso->utf8 "Triplica la quantit‡ corrente") (netptr gui-triplo-percent-button-cb))
+                            (gui-setup-button undef (pix-load-static "16x16/clear-left.png") "Resetta la quantit√† al valore di default" (netptr gui-clear-percent-button-cb))
+                            (gui-setup-button undef (pix-load-static "16x16/mezzo.png") "Dimezza la quantit√† corrente" (netptr gui-unmezzo-percent-button-cb))
+                            (gui-setup-button undef (pix-load-static "16x16/terzo.png") "Dividi per 3 la quantit√† corrente" (netptr gui-unterzo-percent-button-cb))
+                            (gui-setup-button undef (pix-load-static "16x16/x2.png") "Raddoppia la quantit√† corrente" (netptr gui-doppio-percent-button-cb))
+                            (gui-setup-button undef (pix-load-static "16x16/x3.png") "Triplica la quantit√† corrente" (netptr gui-triplo-percent-button-cb))
                             (gui-setup-button undef (pix-load-static "16x16/if_right_arrow.png") "Aggiungi l'alimento selezionato" (netptr gui-add1-button-cb)) ))
         (iup-set-str-attribute hbox "EXPAND" "HORIZONTAL")
         (set @wid (iup-vbox (gui-setup-left-list)
@@ -647,7 +647,7 @@
                         (<> s "")
                         (<> s alimento)
                         until (= <db s> undef)
-                        (iup-warning self (+ "L'alimento " s (iso->utf8 " esiste gi‡.") nl
+                        (iup-warning self (+ "L'alimento " s " esiste gi√†." nl
                                              "Scegli un altro nome." )))
                 (dgraph-renamenode db alimento s)
                 (gui-update-left-list (list s))
@@ -711,17 +711,17 @@
                         (set i true)
                         (alt    (seq    (in s <_kv "nutrienti">)
                                         (set i false)
-                                        (iup-warning self (+ s (iso->utf8 " Ë un nutriente.") nl
+                                        (iup-warning self (+ s " √® un nutriente." nl
                                                              "Scegli un altro nome." )))
                                 (= <db s> undef)
-                                (seq    ; so che s esiste gi‡; per evitare cicli
+                                (seq    ; so che s esiste gi√†; per evitare cicli
                                         ; devo controllare che nessun alimento in alimento
                                         ; abbia come discendente s
                                         (<> <(gui-succ alimento) s> undef)
                                         (set i false)
-                                        (iup-warning self (+ "L'alimento " s (iso->utf8 " esiste gi‡.") nl
+                                        (iup-warning self (+ "L'alimento " s " esiste gi√†." nl
                                                              "Scegli un altro nome." )))
-                                (iup-confirm self (+ "L'alimento " s (iso->utf8 " esiste gi‡.") nl
+                                (iup-confirm self (+ "L'alimento " s " esiste gi√†." nl
                                                      "Lo vuoi sovrascrivere?" ))
                                 (set i false) )
                         until i )
@@ -897,7 +897,7 @@
         (set alimento (iup-get-str-attribute lst1 s))
         (opt    (stringp alimento)
                 (set s "100")
-                (iup-edit-string-with-mask <_kv "dlg"> (iso->utf8 "Quantit‡") (str-split alimento 70) "(/d+/.?/d*|/./d+)" s)
+                (iup-edit-string-with-mask <_kv "dlg"> "Quantit√†" (str-split alimento 70) "(/d+/.?/d*|/./d+)" s)
                 (set s (str->num s))
                 (rationalp s)
                 (iup-set-str-attribute <_kv "percent-entry"> "VALUE" s)
@@ -925,9 +925,9 @@
 
 (defnet gui-info-button-low (self)
         (iup-info self (+
-                (iso->utf8 "gvnutricalc Ë stato scritto in TreeP da Frank Sinapsi") nl
+                "gvnutricalc √® stato scritto in TreeP da Frank Sinapsi" nl
                 nl
-                (iso->utf8 "La fonte originale dei dati iniziali Ë: CREA Centro di ricerca Alimenti e Nutrizione") nl
+                "La fonte originale dei dati iniziali √®: CREA Centro di ricerca Alimenti e Nutrizione" nl
                 "Pagina web: https://www.crea.gov.it/alimenti-e-nutrizione" nl
                 "Pagina web: https://www.alimentinutrizione.it" nl
                 nl
