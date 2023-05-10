@@ -74,7 +74,7 @@
         (assoc-clr aa tmproot)
         (for i in aa do
                 (dgraph-renamenode db (car i) (+ (car i) nl "-----" nl (graph-pix-val (cdr i)))) )
-        (set @pix (dgraph->pix db)) )
+        (set @pix (dgraph->svg db)) )
 
 (defun graph-pix-val (v)
         (if (< v 1)
