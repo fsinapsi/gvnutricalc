@@ -339,7 +339,7 @@
                 (set re (regcomp flt (cmacro REG_ICASE)))
                 (if (<> re undef)
                 then    (for i in <_kv "db"> do
-                                (set j (car i))
+                                (set j (dgraph-get-name i))
                                 (opt    (regexec re j)
                                         (not (in j nutrienti))
                                         (array-append a j) ))
@@ -379,14 +379,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defnet gui-update-right-list ()
-        (deflocal p lst a i j k s pri ai ar ul sdt)
+        (deflocal p lst i j k s pri ai ar ul sdt)
 
         (set p <_kv "alimento">)
         (set lst <_kv "right-list">)
-        (set a (assoc->array p))
-        (sort a (funptr lesscar))
         (set j 1)
-        (for i in a do
+        (for i in p do
                 (iup-set-str-attribute lst j (cdr i) "% di " (car i))
                 (inc j) )
         (iup-set-str-attribute lst j)
@@ -646,10 +644,10 @@
                 (repeat (iup-edit-string self "Rinominazione" "Nuovo nome" s)
                         (<> s "")
                         (<> s alimento)
-                        until (= <db s> undef)
+                        until (= (dgraph-get-node db s) undef)
                         (iup-warning self (+ "L'alimento " s " esiste già." nl
                                              "Scegli un altro nome." )))
-                (dgraph-renamenode db alimento s)
+                (dgraph-set-name (dgraph-get-node db alimento) s)
                 (gui-update-left-list (list s))
                 (gui-erase2-button-cb self)
                 (iup-set-str-attribute <_kv "save-button"> "ACTIVE" "YES")
@@ -666,21 +664,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defnet gui-delete1-button-cb (self)
-        (deflocal nutrienti db alimento asc node)
+        (deflocal alimento q)
 
-        (opt    (set nutrienti <_kv "nutrienti">)
-                (set db <_kv "db">)
-                (set alimento (iup-get-str-attribute <_kv "left-list"> "VALUESTRING"))
+        (opt    (set alimento (iup-get-str-attribute <_kv "left-list"> "VALUESTRING"))
                 (stringp alimento)
-                (not (in alimento nutrienti))
-                (set asc (dgraph-prec-ext db alimento))
-                (set <asc alimento> true)
-                (iup-confirm self (+ "Numero di alimenti che verranno rimossi: " (length asc) "." nl
+                (not (in alimento <_kv "nutrienti">))
+                (set q (dgraph-queue-pred (dgraph-get-node <_kv "db"> alimento)))
+                (iup-confirm self (+ "Numero di alimenti che verranno rimossi: " (length q) "." nl
                                      "Confermi?" ))
-                (while (> (length asc) 0) do
-                        (set node (assoc-root asc))
-                        (dgraph-rmnode db node)
-                        (assoc-clr asc node) )
+                (while (> (length q) 0) do
+                        (dgraph-detach (queue-get q)) )
                 (gui-update-left-list (iup-get-str-attribute <_kv "filter-entry"> "VALUE"))
                 (gui-erase2-button-cb self)
                 (iup-set-str-attribute <_kv "save-button"> "ACTIVE" "YES")
@@ -697,12 +690,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defnet gui-add2-button-cb (self)
-        (deflocal db alimento s i)
+        (deflocal alimento db s i j)
 
-        (opt    (set db <_kv "db">)
-                (set alimento <_kv "alimento">)
+        (opt    (set alimento <_kv "alimento">)
                 (> (length alimento) 0)
-                ; nome di default: l alimento eventualmente selezionato
+                (set db <_kv "db">)
+                ; nome di default: l'alimento eventualmente selezionato
                 (set s (iup-get-str-attribute <_kv "left-list"> "VALUESTRING"))
                 (if (in s <_kv "nutrienti">)
                 then    (set s "") )
@@ -713,7 +706,7 @@
                                         (set i false)
                                         (iup-warning self (+ s " è un nutriente." nl
                                                              "Scegli un altro nome." )))
-                                (= <db s> undef)
+                                (= (dgraph-get-node db s) undef)
                                 (seq    ; so che s esiste già; per evitare cicli
                                         ; devo controllare che nessun alimento in alimento
                                         ; abbia come discendente s
@@ -725,13 +718,16 @@
                                                      "Lo vuoi sovrascrivere?" ))
                                 (set i false) )
                         until i )
-                (opt (dgraph-mknode db s undef))
-                (dgraph-rmedges-succ db s)
+                (if (= (dgraph-node db s s) undef)
+                then    ; in questo caso esisteva già un nodo con nome s;
+                        ; devo rimuovere i suoi archi in uscita
+                        (set j (dgraph-get-node db s))
+                        (for i in j do
+                                (dgraph-detach j i) ))
                 (repeat (set i (assoc-root alimento))
-                        (dgraph-mkedge-acyclic db s i <alimento i>)
+                        (dgraph-link-name-acyclic db s i <alimento i>)
                         (assoc-clr alimento i)
                         until (= (length alimento) 0) )
-                (set alimento (assoc))
                 (set <_kv "alimento"> alimento)
                 (set <alimento s> 100)
                 (gui-update-left-list (list s))
@@ -750,10 +746,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defnet gui-erase2-button-cb (self)
-        (deflocal lst sel alimento found c s i)
-
-        (opt    (set alimento <_kv "alimento">)
-                (> (length alimento) 0)
+        (opt    (> (length <_kv "alimento">) 0)
                 (set <_kv "alimento"> (assoc))
                 (gui-update-right-list) ))
 
@@ -795,7 +788,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defnet gui-expand-button-cb (self)
-        (deflocal lst sel nutrienti db alimento e found c s n t i)
+        (deflocal lst sel nutrienti db alimento e found c s n i j)
 
         (opt    (set lst <_kv "right-list">)
                 (set sel (iup-get-str-attribute lst "VALUE"))
@@ -816,12 +809,12 @@
                                 (set <e s> true)
                                 (rationalp n)
                                 (not (in s nutrienti))
-                                (set t <db s 0>)
                                 (assoc-clr alimento s)
                                 (assoc-clr e s)
-                                (for i in t do
-                                        (inc <alimento (car i)> (* <(cdr i) 0> n 0.01))
-                                        (set <e (car i)> true) )
+                                (set j (dgraph-get-node db s))
+                                (for i in j do
+                                        (inc <alimento (dgraph-get-name i)> (* (dgraph-get-link-val j i) n 0.01))
+                                        (set <e (dgraph-get-name i)> true) )
                                 (set found true) ))
                 (truep found)
                 (gui-update-right-list)
@@ -864,10 +857,10 @@
                 (fail) )
         (set nutrienti <_kv "nutrienti">)
         (alt    (for i in <_kv "db"> do
-                        (if (not (in (car i) nutrienti))
-                        then    (fprint f nl (car i) nl nl)
-                                (for j in <(cdr i) 0> do
-                                        (fprint f (car j) ": " (approx9 <(cdr j) 0>) nl) )
+                        (if (not (in (dgraph-get-name i) nutrienti))
+                        then    (fprint f nl (dgraph-get-name i) nl nl)
+                                (for j in i do
+                                        (fprint f (dgraph-get-name j) ": " (approx9 (dgraph-get-link-val i j)) nl) )
                                 (fprint f "------------------------" nl) ))
                 (seq    (close f)
                         (iup-error self "Salvataggio dati fallito.")

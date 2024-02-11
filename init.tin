@@ -29,7 +29,7 @@
 
         (set _kv (assoc))
         (set <_kv "da-chiudere"> (queue))
-        (set db (dgraph-create))
+        (set db (dgraph))
         (set nutrienti nil)
         (set pri (assoc))
         (set ai (assoc))
@@ -38,7 +38,7 @@
         (set sdt (assoc))
         (for i in (nutrienti) rev do
                 (set nut (car i))
-                (dgraph-mknode db nut undef)
+                (<> (dgraph-node db nut nut) undef)
                 (list-push nutrienti nut)
                 (set <pri nut> <i 1>)
                 (set <ai nut>  <i 2>)
@@ -87,8 +87,7 @@
                 (set l (ltrim (rtrim l)))
                 (if (and (<> l "") (not (lmatch l "#")))
                 then    (set name l)
-                        (not (in name <_kv "nutrienti">))
-                        (opt (dgraph-mknode db name undef))
+                        (skip (dgraph-node db name name))
                         (repeat (set l (freadline f))
                                 (stringp l)
                                 (set l (ltrim (rtrim l)))
@@ -99,7 +98,7 @@
                                         (set l (sub (+ i 2) (maxint) l))
                                         (alt    (seq    (= field "energia")
                                                         (set i 1) )
-                                                (seq    (rmatch setidx i remove l "m" "\302\265")
+                                                (seq    (rmatch setidx i remove l "m" "µ")
                                                         (case i of
                                                                 0       (set i 0.001)
                                                                 1       (set i 0.000001) ))
@@ -107,7 +106,7 @@
                                         (set val (* i (str->num (ltrim (rtrim l)))))
                                         (rationalp val)
                                         (>= val 0)
-                                        (dgraph-mkedge-acyclic db name field val) )))))
+                                        (dgraph-link-name-acyclic db name field val) )))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

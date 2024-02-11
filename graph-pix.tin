@@ -18,67 +18,76 @@
         else    (set @pix (pix-clone (pix-load-static "128x128/kitchen-scale.png"))) ))
 
 (defnet graph-pix-low (alimento @pix)
-        (deflocal tmproot db aa qq q i j k l)
+        (deflocal tmproot db aa qq q i j k l a)
 
         (set tmproot "<<<---temp--->>>")
         (set aa (assoc))
         (set qq (queue))
         (set q (queue))
-        (set db (dgraph-create))
+        (set db (dgraph))
         (set <aa tmproot> 100)
         (for i in alimento do
                 (set j (car i))
                 (queue-put qq j)
                 (queue-put q j)
-                (dgraph-mkedge-acyclic db tmproot j (cdr i))
-                (dgraph-setnodeattr db j "shape" "box")
-                (dgraph-setnodeattr db j "style" "filled")
-                (dgraph-setnodeattr db j "color" (pix-color 0x00 0x00 0x90))
-                (dgraph-setnodeattr db j "fillcolor" (pix-color 0xdf 0xdf 0xff)) )
+                (dgraph-link-name-acyclic db tmproot j (list->assoc (list (cons "label" (cdr i)))))
+                (dgraph-set-val (dgraph-get-node db j)
+                        (list->assoc [ [ "shape" . "box" ]
+                                       [ "style" . "filled" ]
+                                       [ "color" . (pix-color 0x00 0x00 0x90) ]
+                                       [ "fillcolor" . (pix-color 0xdf 0xdf 0xff) ] ])) )
         (repeat (set i (queue-get q))
-                (if (= (dgraph-getnodeattr db i "fillcolor") undef)
-                then    (dgraph-setnodeattr db i "style" "filled")
-                        (dgraph-setnodeattr db i "color" (pix-color 0x00 0x90 0x00))
-                        (dgraph-setnodeattr db i "fillcolor" (pix-color 0xdf 0xff 0xdf)) )
-                (for j in <_kv "db" i 0> do
-                        (set k <(cdr j) 0>)
+                (set l (dgraph-get-node db i))
+                (if (= (dgraph-get-val l) undef)
+                then    (dgraph-set-val l (list->assoc [
+                                        [ "style" . "filled" ]
+                                        [ "color" . (pix-color 0x00 0x90 0x00) ]
+                                        [ "fillcolor" . (pix-color 0xdf 0xff 0xdf) ] ])))
+                (set l (dgraph-get-node <_kv "db"> i))
+                (for j in l do
+                        (set k (dgraph-get-link-val l j))
                         (if (> k 0)
-                        then    (if (= <db (car j)> undef)
-                                then    (queue-put qq (car j))
-                                        (queue-put q (car j)) )
-                                (dgraph-mkedge-acyclic db i (car j) k) ))
+                        then    (set j (dgraph-get-name j))
+                                (if (= (dgraph-get-node db j) undef)
+                                then    (queue-put qq j)
+                                        (queue-put q j) )
+                                (dgraph-link-name-acyclic db i j (list->assoc (list (cons "label" k)))) ))
                 until (= (length q) 0) )
         (for i in <_kv "nutrienti"> do
-                (if (<> <db i> undef)
-                then    (dgraph-setnodeattr db i "shape" "box")
-                        (dgraph-setnodeattr db i "style" "filled")
-                        (dgraph-setnodeattr db i "color" (pix-color 0x90 0x00 0x00))
-                        (dgraph-setnodeattr db i "fillcolor" (pix-color 0xff 0xdf 0xdf)) ))
+                (set j (dgraph-get-node db i))
+                (if (<> j undef)
+                then    (dgraph-set-val j (list->assoc [
+                                        [ "shape" . "box" ]
+                                        [ "style" . "filled" ]
+                                        [ "color" . (pix-color 0x90 0x00 0x00) ]
+                                        [ "fillcolor" . (pix-color 0xff 0xdf 0xdf) ] ]))))
         (repeat (set i (queue-get qq))
                 (alt    (seq    (set q 0)
-                                (for j in <db i 1> do
-                                        (set k <aa (car j)>)
+                                (for j in (dgraph-queue-in (dgraph-get-node db i)) do
+                                        (set k <aa (dgraph-get-name j)>)
                                         (<> k undef)
-                                        (set l <db (car j) 0 i 0>)
+                                        (set a (dgraph-get-link-val j (dgraph-get-node db i)))
+                                        (set l <a "label">)
                                         (set k (* k l 0.01))
                                         (inc q k)
-                                        (dgraph-setedgeattr db (car j) i "labelfontsize" 10)
-                                        (dgraph-setedgeattr db (car j) i "labelangle" -20)
-                                        (dgraph-setedgeattr db (car j) i "labeldistance" 3)
-                                        (dgraph-setedgeattr db (car j) i "taillabel" (graph-pix-val l))
-                                        (dgraph-setedgeattr db (car j) i "headlabel" (graph-pix-val k)) )
+                                        (assoc-clr a "label")
+                                        (set <a "labelfontsize"> 10)
+                                        (set <a "labelangle"> -20)
+                                        (set <a "labeldistance"> 3)
+                                        (set <a "taillabel"> (graph-pix-val l))
+                                        (set <a "headlabel"> (graph-pix-val k)) )
                                 (set <aa i> q) )
                         (queue-put qq i) )
                 until (= (length qq) 0) )
-        (dgraph-rmnode db tmproot)
+        (dgraph-detach (dgraph-get-node db tmproot))
         (assoc-clr aa tmproot)
         (for i in aa do
-                (dgraph-renamenode db (car i) (+ (car i) nl "-----" nl (graph-pix-val (cdr i)))) )
-        (set @pix (dgraph->svg db)) )
+                (set <(dgraph-get-val (dgraph-get-node db (car i))) "label"> (+ (car i) nl "-----" nl (graph-pix-val (cdr i)))) )
+        (set @pix (dgraph->svg db [ [ "layout" . "neato" ] ])) )
 
 (defun graph-pix-val (v)
         (if (< v 1)
-        (if (< v 0.001) (+ (sprint (approx2 (* v 1000000))) "\302\265") (+ (sprint (approx2 (* v 1000))) "m"))
+        (if (< v 0.001) (+ (sprint (approx2 (* v 1000000))) "µ") (+ (sprint (approx2 (* v 1000))) "m"))
         (sprint (approx2 v)) ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

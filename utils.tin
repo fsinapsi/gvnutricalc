@@ -8,14 +8,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; incrementa il parziale p di x% di alimento a;
-; p e a sono assoc, x razionale
+; incrementa il parziale p di x% di alimento node;
+; p è un assoc, node un nodo del db, x razionale
 
-(defnet alimento-inc (p a x)
-        (deflocal i)
+(defnet alimento-inc (p node x)
+        (deflocal succ)
 
-        (for i in a do
-                (inc <p (car i)> (* <(cdr i) 0> x 0.01)) ))
+        (for succ in node do
+                (inc <p (dgraph-get-name succ)> (* (dgraph-get-link-val node succ) x 0.01)) ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -43,7 +43,7 @@
                 (set x (cdr i))
                 (if (in n nutrienti)
                 then    (inc <@p n> x)
-                else    (alimento-inc @p <db n 0> x)
+                else    (alimento-inc @p (dgraph-get-node db n) x)
                         (set k false) ))
         (if k
         then    (set @p p) ))
@@ -76,8 +76,8 @@
                 (queue-put q j)
                 (set <@asc j> true) )
         (while (> (length q) 0) do
-                (for i in <db (queue-get q) 0> do
-                        (set j (car i))
+                (for i in (dgraph-get-node db (queue-get q)) do
+                        (set j (dgraph-get-name i))
                         (if (= <@asc j> undef)
                         then    (queue-put q j)
                                 (set <@asc j> true) ))))
@@ -102,11 +102,11 @@
         (set asc (assoc))
         (set @a (array 0))
         (while (> (length q) 0) do
-                (set n (queue-get q))
-                (for i in <db n 1> do
-                        (set j (car i))
-                        (if (> (dgraph-getedgeval db j n) 0)
-                        then    (if (= <asc j> undef)
+                (set n (dgraph-get-node db (queue-get q)))
+                (for i in (dgraph-queue-in n) do
+                        (if (> (dgraph-get-link-val i n) 0)
+                        then    (set j (dgraph-get-name i))
+                                (if (= <asc j> undef)
                                 then    (set <asc j> true)
                                         (array-append @a j)
                                         (queue-put q j) ))))
@@ -155,6 +155,35 @@
 (defun ar (nut) <_kv "larn" 2 nut>)
 (defun ul (nut) <_kv "larn" 3 nut>)
 (defun sdt (nut) <_kv "larn" 4 nut>)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;                                                                      ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defnet dgraph-link-name (g name1 name2 val)
+        (dgraph-link-name-low false g name1 name2 val) )
+
+(defnet dgraph-link-name-acyclic (g name1 name2 val)
+        (dgraph-link-name-low true g name1 name2 val) )
+
+(defnet dgraph-link-name-low (acyclic g name1 name2 val)
+        (deflocal node1 node2)
+
+        (set node1 (dgraph-get-node g name1))
+        (if (= node1 undef)
+        then    (set node1 (dgraph-node g undef name1)) )
+        (set node2 (dgraph-get-node g name2))
+        (if (= node2 undef)
+        then    (set node2 (dgraph-node g undef name2)) )
+        (if acyclic
+        then    (dgraph-link-acyclic node1 node2 val)
+        else    (dgraph-link node1 node2 val) ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
