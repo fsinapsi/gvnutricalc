@@ -19,7 +19,7 @@
         (iup-set-callback dlg "CLOSE_CB" (netptr gui-close))
         (iup-set-callback dlg "RESIZE_CB" (netptr gui-resize-cb))
         (iup-set-callback dlg "K_ANY" (netptr gui-kb-cb))
-        (iup-set-str-attribute dlg "FULLSCREEN" "NO")
+        (iup-set-bool dlg "FULLSCREEN" false)
         (iup-set-str-attribute dlg "RASTERSIZE" (sprint <(geometry) 2> "x" <(geometry) 3>))
         (if (cmingw)
         then    (iup-show-xy dlg (cmacro IUP_CENTER) (cmacro IUP_CENTER))
@@ -27,7 +27,7 @@
         (set <_kv "geometry-hack"> (cons (- <(geometry) 2> (iup-get-int dlg "RASTERSIZE")) (- <(geometry) 3> (iup-get-int2 dlg "RASTERSIZE"))))
         (iup-set-str-attribute dlg "USERSIZE")
         (gui-update-left-list (iup-get-str-attribute <_kv "filter-entry"> "VALUE"))
-        (iup-set-str-attribute <_kv "save-button"> "ACTIVE" "NO")
+        (iup-set-bool <_kv "save-button"> "ACTIVE" false)
         (iup-set-focus <_kv "filter-entry">)
         (iup-main-loop)
         (close dlg)
@@ -38,7 +38,7 @@
                 (iup-exit-loop) ))
 
 (defnet gui-quit-low (self)
-        (alt    (= (iup-get-str-attribute <_kv "save-button"> "ACTIVE") "NO")
+        (alt    (not (iup-get-bool <_kv "save-button"> "ACTIVE"))
                 (iup-confirm self (+ "Non hai salvato le ultime modifiche." nl
                                      "Vuoi uscire comunque?" ))))
 
@@ -62,8 +62,8 @@
         (set @wid (iup-button))
         (if (stringp name)
         then    (set <_kv name> @wid) )
-        (iup-set-str-attribute @wid "EXPAND" "NO")
-        (set img (iup-image-rgba icon))
+        (iup-set-bool @wid "EXPAND" false)
+        (set img (iup-image-rgba-hacked icon))
         (da-chiudere img)
         (iup-set-attribute-handle @wid "IMAGE" img)
         (if (stringp tip)
@@ -97,7 +97,7 @@
         (iup-set-attribute-handle @wid "TABIMAGE1" img)
 
         (iup-set-callback @wid "TABCHANGEPOS_CB" (netptr graph-tab-changepos-cb))
-        (iup-set-str-attribute @wid "EXPAND" "YES") )
+        (iup-set-bool @wid "EXPAND" true) )
 
 (defun gui-setup-calc-page () net gui-setup-calc-page)
 (defnet gui-setup-calc-page (@wid)
@@ -107,12 +107,14 @@
         then    ; hack necessario per gtk3...
                 (set hbox (iup-hbox))
                 (iup-set-str-attribute hbox "MARGIN" "0x7")
-                (set @wid (iup-vbox (gui-setup-toolbar)
+                (set @wid (iup-vbox
+                                (gui-setup-toolbar)
                                 (gui-setup-calc-page2)
                                 hbox ))
-        else    (set @wid (iup-vbox (gui-setup-toolbar)
+        else    (set @wid (iup-vbox
+                                (gui-setup-toolbar)
                                 (gui-setup-calc-page2) )))
-        (iup-set-str-attribute @wid "EXPAND" "YES") )
+        (iup-set-bool @wid "EXPAND" true) )
 
 (defun gui-setup-toolbar () net gui-setup-toolbar)
 (defnet gui-setup-toolbar (@wid)
@@ -132,8 +134,8 @@
 (defun gui-setup-calc-page2 () net gui-setup-calc-page2)
 (defnet gui-setup-calc-page2 (@wid)
         (set @wid (iup-hbox (gui-setup-left) (gui-setup-right)))
-        (iup-set-str-attribute @wid "EXPAND" "YES")
-        (iup-set-str-attribute @wid "HOMOGENEOUS" "YES") )
+        (iup-set-bool @wid "EXPAND" true)
+        (iup-set-bool @wid "HOMOGENEOUS" true) )
 
 (defun gui-setup-graph-page () net gui-setup-graph-page)
 (defnet gui-setup-graph-page (@wid)
@@ -142,7 +144,7 @@
         (set lbl (iup-label))
         (iup-set-callback lbl "BUTTON_CB" (netptr graph-tab-popup-cb))
         (iup-set-str-attribute lbl "ALIGNMENT" "ACENTER:ACENTER")
-        (iup-set-str-attribute lbl "EXPAND" "YES")
+        (iup-set-bool lbl "EXPAND" true)
         (set pix (pix-create 1 1))
         (set <_kv "graph-pix"> pix)
         (set img (iup-image-rgba pix))
@@ -177,7 +179,7 @@
         (iup-set-str-attribute hbox "EXPAND" "HORIZONTAL")
         (set @wid (iup-vbox (gui-setup-left-list)
                             hbox ))
-        (iup-set-str-attribute @wid "EXPAND" "YES") )
+        (iup-set-bool @wid "EXPAND" true) )
 
 (defun gui-setup-left-list () net gui-setup-left-list)
 (defnet gui-setup-left-list (@wid)
@@ -185,7 +187,7 @@
         (set <_kv "left-list"> @wid)
         ;(iup-set-callback @wid "DRAGBEGIN_CB" (netptr gui-drag-cb))
         ;(iup-set-callback @wid "BUTTON_CB" (netptr gui-clicked-left-cb))
-        (iup-set-str-attribute @wid "EXPAND" "YES")
+        (iup-set-bool @wid "EXPAND" true)
         (iup-set-str-attribute @wid "FONT" "Lucida Sans, 10")
         (iup-set-str-attribute @wid "BGCOLOR" "223 255 223")
         (iup-set-int @wid "VISIBLECOLUMNS" 1)
@@ -220,16 +222,16 @@
 (defnet gui-setup-right (@wid)
         (set @wid (iup-vbox (gui-setup-right-list)
                             (gui-setup-right-text) ))
-        (iup-set-str-attribute @wid "EXPAND" "YES")
-        (iup-set-str-attribute @wid "HOMOGENEOUS" "YES") )
+        (iup-set-bool @wid "EXPAND" true)
+        (iup-set-bool @wid "HOMOGENEOUS" true) )
 
 (defun gui-setup-right-list () net gui-setup-right-list)
 (defnet gui-setup-right-list (@wid)
         (set @wid (iup-list))
         (set <_kv "right-list"> @wid)
         ;(iup-set-callback @wid "DROPDATA_CB" (netptr gui-drop-cb))
-        (iup-set-str-attribute @wid "EXPAND" "YES")
-        (iup-set-str-attribute @wid "MULTIPLE" "YES")
+        (iup-set-bool @wid "EXPAND" true)
+        (iup-set-bool @wid "MULTIPLE" true)
         (iup-set-str-attribute @wid "FONT" "Lucida Sans, 10")
         (iup-set-str-attribute @wid "BGCOLOR" "223 223 255")
         (iup-set-int @wid "VISIBLECOLUMNS" 1)
@@ -239,12 +241,12 @@
 (defnet gui-setup-right-text (@wid)
         (set @wid (iup-text))
         (set <_kv "right-text"> @wid)
-        (iup-set-str-attribute @wid "EXPAND" "YES")
+        (iup-set-bool @wid "EXPAND" true)
         (iup-set-str-attribute @wid "FONT" "Lucida Console, 10")
-        (iup-set-str-attribute @wid "MULTILINE" "YES")
-        (iup-set-str-attribute @wid "READONLY" "YES")
-        (iup-set-str-attribute @wid "WORDWRAP" "YES")
-        (iup-set-str-attribute @wid "FORMATTING" "YES")
+        (iup-set-bool @wid "MULTILINE" true)
+        (iup-set-bool @wid "READONLY" true)
+        (iup-set-bool @wid "WORDWRAP" true)
+        (iup-set-bool @wid "FORMATTING" true)
         (iup-set-str-attribute @wid "PADDING" "4x0")
         (iup-set-str-attribute @wid "BGCOLOR" "255 223 223")
         (iup-set-int @wid "VISIBLELINES" 1)
@@ -519,15 +521,15 @@
         (deflocal dlg)
 
         (set dlg <_kv "dlg">)
-        (case (iup-get-str-attribute dlg "FULLSCREEN") of
-                "NO"    (seq    (set <_kv "dlg-size"> (iup-get-str-attribute dlg "RASTERSIZE"))
-                                (set <_kv "dlg-position-x"> (iup-get-int dlg "SCREENPOSITION"))
-                                (set <_kv "dlg-position-y"> (iup-get-int2 dlg "SCREENPOSITION"))
-                                (iup-set-str-attribute dlg "FULLSCREEN" "YES") )
-                "YES"   (seq    (iup-set-str-attribute dlg "FULLSCREEN" "NO")
-                                (iup-set-str-attribute dlg "RASTERSIZE" <_kv "dlg-size">)
-                                (iup-show-xy dlg <_kv "dlg-position-x"> <_kv "dlg-position-y">)
-                                (iup-set-str-attribute dlg "TITLE" (main-window-title)) ))
+        (if (iup-get-bool dlg "FULLSCREEN")
+        then    (iup-set-bool dlg "FULLSCREEN" false)
+                (iup-set-str-attribute dlg "RASTERSIZE" <_kv "dlg-size">)
+                (iup-show-xy dlg <_kv "dlg-position-x"> <_kv "dlg-position-y">)
+                (iup-set-str-attribute dlg "TITLE" (main-window-title))
+        else    (set <_kv "dlg-size"> (iup-get-str-attribute dlg "RASTERSIZE"))
+                (set <_kv "dlg-position-x"> (iup-get-int dlg "SCREENPOSITION"))
+                (set <_kv "dlg-position-y"> (iup-get-int2 dlg "SCREENPOSITION"))
+                (iup-set-bool dlg "FULLSCREEN" true) )
         (iup-refresh dlg)
         (iup-flush)
         (graph-tab-changepos-post) )
@@ -650,7 +652,7 @@
                 (dgraph-set-name (dgraph-get-node db alimento) s)
                 (gui-update-left-list (list s))
                 (gui-erase2-button-cb self)
-                (iup-set-str-attribute <_kv "save-button"> "ACTIVE" "YES")
+                (iup-set-bool <_kv "save-button"> "ACTIVE" true)
                 (iup-set-focus <_kv "percent-entry">) ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -676,7 +678,7 @@
                         (dgraph-detach (queue-get q)) )
                 (gui-update-left-list (iup-get-str-attribute <_kv "filter-entry"> "VALUE"))
                 (gui-erase2-button-cb self)
-                (iup-set-str-attribute <_kv "save-button"> "ACTIVE" "YES")
+                (iup-set-bool <_kv "save-button"> "ACTIVE" true)
                 (iup-set-focus <_kv "percent-entry">) ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -732,7 +734,7 @@
                 (set <alimento s> 100)
                 (gui-update-left-list (list s))
                 (gui-update-right-list)
-                (iup-set-str-attribute <_kv "save-button"> "ACTIVE" "YES")
+                (iup-set-bool <_kv "save-button"> "ACTIVE" true)
                 (iup-set-focus <_kv "right-list">) ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -842,7 +844,7 @@
 (defnet gui-save-button-low (self)
         (deflocal dbpath dbbakpath f nutrienti i j)
 
-        (= (iup-get-str-attribute self "ACTIVE") "YES")
+        (truep (iup-get-bool self "ACTIVE"))
         (set dbpath <_kv "dbpath">)
         (set dbbakpath <_kv "dbbakpath">)
         (alt    (not (pathexists dbpath))
@@ -866,7 +868,7 @@
                         (iup-error self "Salvataggio dati fallito.")
                         (fail) ))
         (close f)
-        (iup-set-str-attribute self "ACTIVE" "NO") )
+        (iup-set-bool self "ACTIVE" false) )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
